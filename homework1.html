@@ -1,0 +1,386 @@
+<!--Jesus Antonio Carranza-->
+<!--Nino Yaghoubi-->
+<!--CS3600-->
+<!--to change line change the var coordinates in the <script> section it is the first variable-->
+<!--more instructions in script section-->
+<!--any questions email me at jcarranza3@csustan.edu-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+</head>
+<body>
+
+<canvas id="gameCanvas" width="900" height="600"></canvas>
+
+<script>
+//raster that goes from 0 to 19 up and down
+//pick your ploting points
+//(xSub1,ySub1),(xSub2,ySub2)
+// for var coordinates = [xSub1,ySub1,xSub2,ySub2];
+var coordinates = [5,3,1,10];
+
+  var mouseX = 0;
+  var mouseY = 0;
+  var selectedIdx = -1;
+  var tileOverIdx = -1;
+  
+//each tile is technically 36px x 36px because of the 1px gaps
+  const TILE_W = 30;
+  const TILE_H = 30;
+  const TILE_GAP = 1;
+  const TILE_COLS = 20;
+  const TILE_ROWS = 20;
+  
+  
+  var y2 = (coordinates[3]+1) * TILE_H;
+  var y1 = (coordinates[1]+1) * TILE_H;
+    
+  var x2 = coordinates[2] * TILE_H;
+  var x1 = coordinates[0] * TILE_H;
+    
+  var dy = Math.abs(y2 - y1);
+  var dx = Math.abs(x2 - x1);
+  
+  var m = dy/dx;
+
+  var tileGrid =
+      [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ];
+  const NO_PIECE = 0;
+  const PAWN = 1;
+  const ROOK = 2;
+  
+  
+  
+  function initInput() {
+    document.addEventListener("mousemove", mousemoved);
+    document.addEventListener("mousedown", mouseclicked);
+  }
+
+  function mouseclicked(evt) {
+    if(tileOverIdx < 0 || tileOverIdx >= tileGrid.length) { // invalid or off board
+      return;
+    }
+
+    if(selectedIdx != -1) {
+      tileGrid[tileOverIdx] = tileGrid[selectedIdx]; // put the piece here (overwrite)
+      tileGrid[selectedIdx] = NO_PIECE; // clear the spot where it was sitting
+      selectedIdx = -1; // forget selection
+    } else if(tileGrid[tileOverIdx] != NO_PIECE ) {
+      selectedIdx = tileOverIdx;
+    }
+  }
+
+  function mousemoved(evt) {
+    var rect = canvas.getBoundingClientRect();
+    var root = document.documentElement;
+
+    // account for the margins, canvas position on page, scroll amount, etc.
+	mouseX = evt.clientX - rect.left - root.scrollLeft;
+	mouseY = evt.clientY - rect.top - root.scrollTop;
+	
+
+    var tileOverCol = Math.floor(mouseX / TILE_W);
+    var tileOverRow = Math.floor(mouseY / TILE_H);    
+    tileOverIdx = tileCoordToIndex(tileOverCol,tileOverRow);
+  }
+
+  var canvas, canvasContext;
+  
+  function tileCoordToIndex(tileCol, tileRow) {
+    return (tileCol + TILE_COLS*tileRow);
+  }
+  
+  window.onload = function() {
+    canvas = document.getElementById('gameCanvas');
+    canvasContext = canvas.getContext('2d');
+    
+    initInput();
+    
+    // these next few lines set up our game logic and render to happen 30 times per second
+    var framesPerSecond = 30;
+    setInterval(function() {
+        drawEverything();
+      }, 1000/framesPerSecond);
+
+  }
+  
+  function colorText(showWords, textX,textY, fillColor) {
+	canvasContext.fillStyle = fillColor;
+	canvasContext.fillText(showWords, textX, textY);
+  }
+  
+  function colorRect(topLeftX, topLeftY, boxWidth, boxHeight, fillColor) {
+    canvasContext.fillStyle = fillColor;
+    canvasContext.fillRect(topLeftX, topLeftY, boxWidth, boxHeight);
+  }
+
+   //slope line 
+  function outlineRect(topLeftX, topLeftY, boxWidth, boxHeight, lineColor) {
+    canvasContext.beginPath();
+    canvasContext.strokeStyle = lineColor;
+    canvasContext.lineWidth = "2";
+    canvasContext.rect(topLeftX, topLeftY, boxWidth, boxHeight);
+    canvasContext.stroke();
+  }
+  
+  function drawTiles() {
+    for(var eachCol=0; eachCol<TILE_COLS; eachCol++) {
+      for(var eachRow=0; eachRow<TILE_ROWS; eachRow++) {
+        var tileLeftEdgeX = eachCol * TILE_W;
+        var tileTopEdgeY = eachRow * TILE_H;
+
+         colorRect(tileLeftEdgeX, tileTopEdgeY,
+                   TILE_W - TILE_GAP, TILE_H - TILE_GAP, 'grey' );
+
+        var idxHere = tileCoordToIndex(eachCol,eachRow);
+        var pieceHere = tileGrid[idxHere];
+
+        var pieceName = "";
+		
+        canvasContext.fillText(pieceName,
+                  tileLeftEdgeX+TILE_W/2, tileTopEdgeY+TILE_H/2);
+		
+		//green highlight over a box
+        if(tileOverIdx == idxHere) {
+          outlineRect(tileLeftEdgeX, tileTopEdgeY,
+                   TILE_W - TILE_GAP, TILE_H - TILE_GAP, 'green' );
+        }
+        if(selectedIdx == idxHere) {
+          // cutting extra margin from each edge so it won't overlap mouseover tile
+          outlineRect(tileLeftEdgeX+3, tileTopEdgeY+3,
+                   TILE_W - TILE_GAP-6, TILE_H - TILE_GAP-6, 'yellow' );
+        }
+      } // end of for eachRow
+    } // end of for eachCol
+  } // end of drawTiles()
+   
+   function drawLine(){
+		//draw the line
+		canvasContext.beginPath();
+		canvasContext.moveTo(x1+TILE_W/2,y1-TILE_H/2);
+		canvasContext.lineTo(x2+TILE_W/2,y2-TILE_H/2);
+		canvasContext.stroke();
+	}
+	 function drawBreLine(){
+		
+	
+		var g1=x1;
+		var g2=x2;
+		var j1=y1;
+		var j2=y2;
+		var d_x = Math.abs(x2-x1);
+		var d_y = Math.abs(y2-y1);
+		var d = 2*d_y - d_x;
+		var d2 = 2*d_x -d_y;
+		var up = 2*(d_y-d_x);
+		var up2 = 2*(d_x-d_y);
+		var down = 2*d_y;
+		var down2 = 2*d_x;
+		
+		
+		// line for |m|=undefiend, when run is 0 //cheked both and both good
+		if(x2==x1){
+			while(j1>j2){
+				canvasContext.fillStyle = 'purple';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				j1-=TILE_H;
+			}
+			while(j2>j1){
+				canvasContext.fillStyle = 'purple';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				j1+=TILE_H;
+			}
+				canvasContext.fillStyle = 'purple';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+		}
+		
+		//line for |m|<1 (tested with   var y2 = 150;var y1 = 570;var x2 = 540;var x1 = 30;)
+		if(m<1){
+			if(x2>x1){
+				canvasContext.fillStyle = 'blue';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				
+				while(g1<g2 && j2>j1){
+					g1+=TILE_W;
+				if(d<0){
+					d+=down; 
+				}else{
+					j1+=TILE_H;
+					d+=up;
+				}
+					canvasContext.fillStyle = 'blue';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+			
+				while(g1<g2 && j1>j2){
+					g1+=TILE_W;
+				if(d<0){
+					d+=down; 
+				}else{
+					j1-=TILE_H;
+					d+=up;
+				}
+					canvasContext.fillStyle = 'blue';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+			}else if(x1>x2){
+				canvasContext.fillStyle = 'blue';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				while(g1>g2 && j2>j1){
+					g1-=TILE_W;
+				if(d<0){
+					d+=down; 
+				}else{
+					j1+=TILE_H;
+					d+=up;
+				}
+					canvasContext.fillStyle = 'blue';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+				
+				while(g1>g2 && j1>j2){
+					g1-=TILE_W;
+				if(d<0){
+					d+=down; 
+				}else{
+					j1-=TILE_H;
+					d+=up;
+				}
+					canvasContext.fillStyle = 'blue';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+			}
+				
+		//line for |m|>=1	
+		}else if(m>=1){
+			if(x2>x1){
+				canvasContext.fillStyle = 'red';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				while(j1<j2){
+					j1+=TILE_H;
+					if(d2<0){
+						d2+=down2;
+					}else{
+						g1+=TILE_W;
+						d2+=up2;
+					}
+					canvasContext.fillStyle = 'red';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+				while(j1>j2){
+					j1-=TILE_H;
+					if(d2<0){
+						d2+=down2;
+					}else{
+						g1+=TILE_W;
+						d2+=up2;
+					}
+					canvasContext.fillStyle = 'red';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+			}else if(x1>x2){
+				canvasContext.fillStyle = 'red';
+				canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				while(j1<j2){
+					j1+=TILE_H;
+					if(d2<0){
+						d2+=down2;
+					}else{
+						g1-=TILE_W;
+						d2+=up2;
+					}
+					canvasContext.fillStyle = 'red';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				}
+				while(j1>j2){
+					j1-=TILE_H;
+					if(d2<0){
+						d2+=down2;
+					}else{
+						g1-=TILE_W;
+						d2+=up2;
+					}
+					canvasContext.fillStyle = 'red';
+					canvasContext.fillRect(g1,j1-TILE_H, TILE_W-TILE_GAP,TILE_H-TILE_GAP);
+				
+				}
+			
+			}
+		}
+	}
+	
+  //draws everything on the screen
+  function drawEverything() {
+    colorRect(0, 0, canvas.width, canvas.height, 'black');
+	
+
+    canvasContext.textAlign="center";
+    drawTiles();
+	drawLine();
+	drawBreLine();
+	colorText(Math.floor(mouseX/30)+","+Math.floor(mouseY/30), mouseX, mouseY, 'yellow');
+	    
+	canvasContext.textAlign="left";
+    canvasContext.fillStyle = 'white';
+	canvasContext.font='20px Arial';
+    var rightAreaX = TILE_W*TILE_COLS;
+    var lineSkip = 21;
+    var lineY = 20;
+    canvasContext.fillText("Top left corner is (0,0) ",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("Bottom right corner(19,19) ",rightAreaX,lineY);
+    lineY += lineSkip;
+    canvasContext.fillText("Each square is 1px by  1px ",rightAreaX,lineY);
+    lineY += lineSkip;
+    canvasContext.fillText("",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("Instructions",rightAreaX,lineY);
+    lineY += lineSkip;
+    canvasContext.fillText("Pick your ploting points",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("In coordinates array",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("In side the code.",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("change in var coordinates",rightAreaX,lineY);
+    lineY += lineSkip;
+	lineY += lineSkip;
+	lineY += lineSkip;
+	lineY += lineSkip;
+	lineY += lineSkip;
+	lineY += lineSkip;
+	canvasContext.fillText("     Jesus Carranza",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("     Nino Yaghoubi",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("     CS3600",rightAreaX,lineY);
+    lineY += lineSkip;
+	canvasContext.fillText("     4/7/16",rightAreaX,lineY);
+    lineY += lineSkip;
+  }
+</script>
+
+</body>
+</html>
